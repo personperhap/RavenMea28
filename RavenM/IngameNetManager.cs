@@ -2351,6 +2351,37 @@ namespace RavenM
                                     }
                                 }
                                 break;
+                            case PacketType.TriggerSpawnActor:
+                                {
+
+                                    var triggerPacket = dataStream.ReadTriggerSpawnActorPacket();
+                                    Plugin.logger.LogDebug($"Receiving Trigger Packet with ID: {triggerPacket.Id}");
+                                    List<TriggerSpawnSquad> spawnSquadTriggers = FindObjectsOfType<TriggerSpawnSquad>().ToList();
+                                    TriggerSpawnSquad targetReceiver = null;
+                                    foreach (TriggerSpawnSquad receiver in spawnSquadTriggers)
+                                    {
+                                        if (TriggerReceivePatch.GetTriggerComponentHash(receiver) == triggerPacket.Id)
+                                        {
+                                            targetReceiver = receiver;
+                                            break;
+                                        }
+                                    }
+                                    if (targetReceiver == null)
+                                    {
+                                        Plugin.logger.LogWarning($"Failed to find target receiver for trigger packet!! : {triggerPacket.Id}");
+                                        break;
+                                    }
+
+                                    if (triggerPacket.SpawnInfo == -1)
+                                        break;
+                                    TriggerSpawnSquad.SpawnInfo info = targetReceiver.squadMemberInfo[triggerPacket.SpawnInfo];
+
+                                    if (ClientActors.ContainsKey(triggerPacket.ActorId))
+                                        targetReceiver.SpawnActor(ClientActors[triggerPacket.ActorId], info);
+
+
+                                }
+                                break;
                             default:
                                 RSPatch.RSPatch.FixedUpdate(packet, dataStream);
                                 break;

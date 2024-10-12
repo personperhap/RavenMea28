@@ -21,7 +21,46 @@ namespace RavenM
             return true;
         }
     }
+
+    [HarmonyPatch(typeof(TriggerSpawnSquad), "SpawnBot")]
+    public class TriggerSpawnBot
+    {
+        //syncs spawn squad triggers so that the bots have the right spawninfo and skin
+
+
+        static void Postfix(TriggerSpawnSquad __instance, AiActorController __result, TriggerSpawnSquad.SpawnInfo info, TriggerSpawnSquad.AiInfo aiInfo)
+        {
+            if (IngameNetManager.instance.IsClient && !IngameNetManager.instance.IsHost)
+                return;
+
+            __instance.StartCoroutine(SendTrigger(__instance, __result, info, aiInfo));
+        }
+
+        static IEnumerator SendTrigger(TriggerSpawnSquad __instance, AiActorController __result, TriggerSpawnSquad.SpawnInfo info, TriggerSpawnSquad.AiInfo aiInfo)
+        {
+            yield return new WaitForSeconds(2);
+
+            //wait for an arbitrary time. clients might not have the actors spawned in on their side yet
+
+            using MemoryStream memoryStream = new MemoryStream();
+            var packet = new TriggerSpawnActorPacket
+            {
+                Id = TriggerReceivePatch.GetTriggerComponentHash(__instance),
+                ActorId = IngameNetManager.instance.ClientActors.FirstOrDefault(a => a.Value == __result.actor).Key,
+                SpawnInfo = Array.IndexOf(__instance.squadMemberInfo, info)
+            };
+            using (var writer = new ProtocolWriter(memoryStream))
+                writer.Write(packet);
+            byte[] data = memoryStream.ToArray();
+            IngameNetManager.instance.SendPacketToServer(data, PacketType.TriggerSpawnActor, Constants.k_nSteamNetworkingSend_Reliable);
+            yield break;
+        }
+    }
+
+
+
     //prevent odd bugs from happening for the clients
+
     [HarmonyPatch(typeof(TriggerOnDestructibleDamage), "Update")]
     public class TriggerDestructiblePatch
     {
@@ -31,6 +70,27 @@ namespace RavenM
                 return false;
             return true;
         }
+    }
+
+    //checkpoints usually have respawns attached to them
+
+    [HarmonyPatch(typeof(TriggerSpawnPlayer), "SpawnPlayer")]
+    public class PlayerSpawnFix
+    {
+        static void Prefix()
+        {
+            //for some reason, players do not despawn their weapons on a premature respawn. quick patch for that
+            for (int i = 0; i < 5; i++)
+            {
+                LocalPlayer.actor.DropWeapon(i);
+            }
+        }
+        static void Postfix()
+        {
+            LoadoutUi.Hide();
+        }
+        // fixes some maps that open the loadoutui
+        // clients will be unable to close it without pressing respawn :/
     }
 
     //just teleport all the clients to the host without killing them. should align with what most modders intend
@@ -78,7 +138,7 @@ namespace RavenM
     [HarmonyPatch(typeof(TriggerReceiver), nameof(TriggerReceiver.ReceiveSignal))]
     public class TriggerReceivePatch
     {
-    public static Type[] whitelistReceiver = new Type[] {
+        public static Type[] whitelistReceiver = new Type[] {
         typeof(TriggerActivation),
         typeof(TriggerAddActorAccessory),
         typeof(TriggerAnimationPlayer),
@@ -167,5 +227,14 @@ namespace RavenM
         public int ActorId;
 
         public int VehicleId;
+    }
+
+    public class TriggerSpawnActorPacket
+    {
+        public int Id;
+
+        public int ActorId;
+
+        public int SpawnInfo;
     }
 }
