@@ -49,7 +49,7 @@ namespace RavenM
                 //just checking if all players have "loaded" set to true won't 100% work because the other lobby members could still be in the previous scene and are technically still loaded
                 //we can also check if the players are inside the host's scene just to be extra sure
                 yield return null;
-            }            
+            }
             ready = true;
             yield return null;
 

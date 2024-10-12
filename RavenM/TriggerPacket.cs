@@ -73,8 +73,16 @@ namespace RavenM
     }
 
     [HarmonyPatch(typeof(TriggerSpawnPlayer), "SpawnPlayer")]
-    public class CloseLoadoutPatch
+    public class PlayerSpawnFix
     {
+        static void Prefix()
+        {
+            //for some reason, players do not despawn their weapons on a premature respawn
+            for (int i = 0; i < 5; i++)
+            {
+                LocalPlayer.actor.DropWeapon(i);
+            }
+        }
         static void Postfix()
         {
             LoadoutUi.Hide();
