@@ -105,6 +105,10 @@ namespace RavenM
                 TriggerSignal signalInst = signal;
                 Actor targetActor = signalInst.context.actor;
                 WeaponManager.LoadoutSet forcedLoadout = ActorManager.CopyLoadoutOfActor(targetActor);
+                for (int i = 0; i < 5; i++)
+                {
+                    LocalPlayer.actor.DropWeapon(i);
+                }
                 actor.SpawnAt(targetActor.transform.position, Quaternion.LookRotation(targetActor.controller.FacingDirection()), forcedLoadout);
                 int num = -1;
                 for (int i = 0; i < 5; i++)
@@ -120,7 +124,12 @@ namespace RavenM
                     }
                 }
                 if (targetActor.IsSeated())
-                    actor.EnterVehicle(targetActor.seat.vehicle);
+                {
+                    if (!targetActor.seat.vehicle.IsFull())
+                    {
+                        actor.EnterVehicle(targetActor.seat.vehicle);
+                    }
+                }
                 if (targetActor.IsOnLadder())
                     actor.GetOnLadderAtHeight(targetActor.ladder, targetActor.ladderHeight);
                 if (targetActor.parachuteDeployed)
