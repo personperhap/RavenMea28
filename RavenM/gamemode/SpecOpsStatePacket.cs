@@ -76,12 +76,15 @@ namespace RavenM
 
             typeof(SpecOpsMode).GetField("gameIsRunning", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(__instance, true);
             __instance.dialog.OnPlayerAssumesControl();
-
-            var introAction = (TimedAction)typeof(SpecOpsMode).GetField("gameIsRunning", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(__instance);
-
-            introAction.Start(); //seems to work.
-
+            
             return false;
+        }
+
+        static void Postfix(SpecOpsMode __instance)
+        {
+            if (!LobbySystem.instance.InLobby || !IngameNetManager.instance.IsHost)
+                return;
+            ActorManager.instance.player.name = GameManager.GetPlayerName();
         }
     }
 
@@ -234,8 +237,17 @@ namespace RavenM
             return false;
         }
     }
+    [HarmonyPatch(typeof(SpecOpsPatrol), "IsCompletedTest")]
+    public class PatrolObjectiveFix
+    {
+        static bool Prefix(SpecOpsPatrol __instance, ref bool __result)
+        {
+            __result = __instance.squad.members.All(x => x.actor.dead);
+            return false;
+        }
+    }
 
-    [HarmonyPatch(typeof(SpecOpsMode), "StealthVictorySequence")]
+        [HarmonyPatch(typeof(SpecOpsMode), "StealthVictorySequence")]
     public class StealthVictorySequencePatch
     {
         public static bool CanPerform = false;
@@ -422,6 +434,27 @@ namespace RavenM
         }
     }
 
+    [HarmonyPatch(typeof(SabotageScenario), nameof(SabotageScenario.Initialize))]
+    public class PatrolInitPatch
+    {
+        static bool Prefix(SabotageScenario __instance, SpecOpsMode specOps, SpawnPoint spawn)
+        {
+            if (!LobbySystem.instance.InLobby || IngameNetManager.instance.IsHost)
+                return true;
+
+            __instance.spawn = spawn;
+            __instance.specOps = specOps;
+
+            typeof(SabotageScenario).GetField("destroyedTargets", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(__instance, 0);
+            typeof(SabotageScenario).GetMethod("RemoveExistingResupplyCrate", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(__instance, null);
+
+            var objectiveText = (string)typeof(SabotageScenario).GetMethod("GetObjectiveText", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(__instance, null);
+            __instance.objective = ObjectiveUi.CreateObjective(objectiveText, __instance.SpawnPointObjectivePosition());
+
+            return false;
+        }
+    }
+
     // Why does this exist in the first place?
     [HarmonyPatch(typeof(SabotageScenario), "RemoveExistingResupplyCrate")]
     public class NoRemoveCratePatch
@@ -519,6 +552,12 @@ namespace RavenM
     [HarmonyPatch(typeof(SpecOpsMode), nameof(SpecOpsMode.FireFlare))]
     public class FireFlarePatch
     {
+        static bool Prefix()
+        {
+            if (!IngameNetManager.instance.IsClient || !IngameNetManager.instance.IsHost)
+                return false;
+            return true;
+        }
         static void Postfix(Actor actor, SpawnPoint spawn)
         {
             if (!IngameNetManager.instance.IsClient || !IngameNetManager.instance.IsHost)
@@ -647,6 +686,8 @@ namespace RavenM
         public List<ScenarioPacket> Scenarios;
 
         public bool GameIsRunning;
+
+        public List<SpecOpsPatrolPacket> Patrols;
     }
 
     public class ScenarioPacket
@@ -668,6 +709,16 @@ namespace RavenM
     public class SabotageScenarioPacket : ScenarioPacket
     {
         public List<int> Targets;
+    }
+
+    public class SpecOpsPatrolPacket
+    {
+
+        public bool isObjective;
+
+        public int type;
+
+        public List<int> members;
     }
 
     public class SpecOpsSequencePacket

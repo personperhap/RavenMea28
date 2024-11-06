@@ -112,8 +112,20 @@ namespace RavenM
             return true;
         }
     }
+    [HarmonyPatch(typeof(SquadLeaderKit), nameof(SquadLeaderKit.Fire))]
+    public class SquadLeaderKitPatch
+    {
+        static bool Prefix(SquadLeaderKit __instance, ref bool __result)
+        {
+            if (__instance.user != ActorManager.instance.player) {
+                __result = false;
+                return false;
+            }
+            return true;
+        }
+    }
 
-    [HarmonyPatch(typeof(ActorManager), nameof(ActorManager.CreateAIActor))]
+        [HarmonyPatch(typeof(ActorManager), nameof(ActorManager.CreateAIActor))]
     public class CreateBotPatch
     {
         static bool Prefix(ref Actor __result)
@@ -524,6 +536,8 @@ namespace RavenM
 
         public Vector3 MarkerPosition = Vector3.zero;
 
+        public TimedAction MarkerReset = new TimedAction(6, true);
+
         public bool UsingMicrophone = false;
 
         public Texture2D MicTexture = new Texture2D(2, 2);
@@ -634,10 +648,19 @@ namespace RavenM
                     Plugin.logger.LogInfo($"Placing marker at: {hit.point}");
 
                     if ((hit.point - MarkerPosition).magnitude > 10)
+                    {
                         MarkerPosition = hit.point;
+                        MarkerReset.Start();
+                    }
                     else
+                    {
                         MarkerPosition = Vector3.zero;
+                    }
                 }
+            }
+            if (MarkerReset.TrueDone())
+            {
+                MarkerPosition = Vector3.zero;
             }
 
 
@@ -729,25 +752,32 @@ namespace RavenM
             PrefabCache[new Tuple<int, ulong>(tag.NameHash, tag.Mod)] = prefab;
         }
 
-        private void DrawMarker(Vector3 worldPos)
+        public static Color StringToColor(String str)
         {
+             return Color.HSVToRGB((Math.Abs(str.GetHashCode()) % 256) / 256.0f, 1.0f, 0.85f);
+        }
+
+        private void DrawMarker(Vector3 worldPos, String name)
+        {
+            Color hashColor = StringToColor(name);
             if (worldPos != Vector3.zero)
             {
+                
                 var camera = FpsActorController.instance.inPhotoMode ? SpectatorCamera.instance.camera : FpsActorController.instance.GetActiveCamera();
                 Vector3 vector = camera.WorldToScreenPoint(worldPos);
 
                 if (vector.z > 0.5f)
                     if (vector.x >= 0 && vector.x < Screen.width)
-                        GUI.DrawTexture(new Rect(vector.x - 15f, Screen.height - vector.y, 30f, 30f), MarkerTexture);
+                        GUI.DrawTexture(new Rect(vector.x - 15f, Screen.height - vector.y, 30f, 30f), MarkerTexture, ScaleMode.StretchToFill, true, 0, hashColor, 0, 0);
                     else if (vector.x > Screen.width / 2)
-                        GUI.DrawTexture(new Rect(Screen.width - 60f, Mathf.Clamp(Screen.height - vector.y, 0, Screen.height - 50f), 50f, 50f), RightMarker);
+                        GUI.DrawTexture(new Rect(Screen.width - 60f, Mathf.Clamp(Screen.height - vector.y, 0, Screen.height - 50f), 50f, 50f), RightMarker, ScaleMode.StretchToFill, true, 0, hashColor, 0, 0);
                     else
-                        GUI.DrawTexture(new Rect(10f, Mathf.Clamp(Screen.height - vector.y, 0, Screen.height - 50f), 50f, 50f), LeftMarker);
+                        GUI.DrawTexture(new Rect(10f, Mathf.Clamp(Screen.height - vector.y, 0, Screen.height - 50f), 50f, 50f), LeftMarker, ScaleMode.StretchToFill, true, 0, hashColor, 0, 0);
                 else
                     if (Vector3.Dot(camera.transform.right, worldPos - camera.transform.position) < 0)
-                    GUI.DrawTexture(new Rect(10f, 0f, 50f, 50f), LeftMarker);
+                    GUI.DrawTexture(new Rect(10f, 0f, 50f, 50f), LeftMarker, ScaleMode.StretchToFill, true, 0, hashColor, 0, 0);
                 else
-                    GUI.DrawTexture(new Rect(Screen.width - 60f, 0f, 50f, 50f), RightMarker);
+                    GUI.DrawTexture(new Rect(Screen.width - 60f, 0f, 50f, 50f), RightMarker, ScaleMode.StretchToFill, true, 0, hashColor, 0, 0);
             }
         }
 
@@ -774,7 +804,7 @@ namespace RavenM
                 }
             }
 
-            DrawMarker(MarkerPosition);
+            DrawMarker(MarkerPosition, FpsActorController.instance.actor.name);
 
             foreach (var kv in ClientActors)
             {
@@ -794,7 +824,7 @@ namespace RavenM
 
                 if (actor.team != GameManager.PlayerTeam())
                     continue;
-                DrawMarker(controller.Targets.MarkerPosition ?? Vector3.zero);
+                DrawMarker(controller.Targets.MarkerPosition ?? Vector3.zero, controller.actor.name);
             }
 
             if (ChatManager.instance.SelectedChatPosition == 1) // Position to the right
@@ -1373,7 +1403,13 @@ namespace RavenM
 
                                         // Delay any possible race on the health value as much as possible.
                                         if (controller.DamageCooldown.TrueDone())
+                                        {
                                             actor.health = actor_packet.Health;
+                                        }
+                                        if (actor.balance < actor_packet.Balance)
+                                        {
+                                            actor.balance = actor_packet.Balance;
+                                        }
 
                                         controller.Targets = actor_packet;
                                         controller.Flags = actor_packet.Flags;
@@ -1503,7 +1539,7 @@ namespace RavenM
                                         direction = damage_packet.Direction,
                                         impactForce = damage_packet.ImpactForce,
                                         sourceActor = sourceActor,
-                                        sourceWeapon = null,
+                                        sourceWeapon = sourceActor.activeWeapon,
                                     };
                                     if (targetActor.controller is NetActorController)
                                     {
@@ -1537,7 +1573,7 @@ namespace RavenM
                                         direction = damage_packet.Direction,
                                         impactForce = damage_packet.ImpactForce,
                                         sourceActor = sourceActor,
-                                        sourceWeapon = null,
+                                        sourceWeapon = sourceActor.activeWeapon,
                                     };
 
                                     if (damage_packet.Silent)
@@ -1767,11 +1803,10 @@ namespace RavenM
                                                     if (ActorManager.instance.spawnPoints[i].owner != gameUpdatePacket.SpawnPointOwners[i])
                                                         ActorManager.instance.spawnPoints[i].SetOwner(gameUpdatePacket.SpawnPointOwners[i]);
                                                 }
-
+                                                
                                                 if (specOpsObj.activeScenarios == null)
                                                 {
                                                     specOpsObj.activeScenarios = new List<SpecOpsScenario>();
-                                                    specOpsObj.activePatrols = new List<SpecOpsPatrol>();
                                                     specOpsObj.activeObjectives = new List<SpecOpsObjective>();
                                                     specOpsObj.scenarioAtSpawn = new Dictionary<SpawnPoint, SpecOpsScenario>();
 
@@ -1829,6 +1864,46 @@ namespace RavenM
                                                     ObjectiveUi.SortEntries();
 
                                                     //typeof(SpecOpsMode).GetField("gameIsRunning", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(specOpsObj, gameUpdatePacket.GameIsRunning);
+                                                }
+                                                if (specOpsObj.activePatrols == null)
+                                                {
+                                                    specOpsObj.activePatrols = new List<SpecOpsPatrol>();
+                                                    Plugin.logger.LogInfo("Getting Patrols: " + gameUpdatePacket.Patrols.Count);
+                                                    foreach (var patrol in gameUpdatePacket.Patrols)
+                                                    {
+                                                        List<Actor> squadMembers = new List<Actor>();
+                                                        foreach (var actor in patrol.members)
+                                                        {
+                                                            squadMembers.Add(ClientActors[actor]);
+                                                        }
+                                                        if (squadMembers.Count == 0)
+                                                        {
+                                                            Plugin.logger.LogWarning("No Squad Members For Patrol");
+                                                            continue;
+                                                        }
+                                                        Plugin.logger.LogInfo("Creating new Spec Ops Patrol");
+                                                        Squad newSquad = new Squad(squadMembers, null, null, null, 0);
+                                                        SpecOpsPatrol specOpsPatrol = new SpecOpsPatrol(newSquad, specOpsObj);
+                                                        newSquad.allowAutoLeaveVehicle = false;
+                                                        newSquad.allowRequestNewOrders = false;
+                                                        newSquad.autoAssignNewOrders = false;
+                                                        newSquad.SetNotAlert(true);
+
+
+                                                        if (patrol.isObjective)
+                                                        {
+                                                            Plugin.logger.LogInfo("Initializing Patrol Objective");
+                                                            specOpsPatrol.type = (PathfindingBox.Type)patrol.type;
+                                                            specOpsPatrol.InitializeObjective();
+                                                            specOpsObj.activeObjectives.Add(specOpsPatrol);
+                                                        }
+                                                        specOpsObj.activePatrols.Add(specOpsPatrol);
+                                                    }
+                                                    ObjectiveUi.SortEntries();
+                                                }
+                                                foreach(SpecOpsPatrol patrol in specOpsObj.activePatrols)
+                                                {
+                                                    patrol.Update();
                                                 }
 
                                                 if (specOpsObj.attackerSpawnPosition == default)
@@ -2055,10 +2130,13 @@ namespace RavenM
                                     if (projectile == null)
                                         continue;
 
-                                    if (ClientActors.TryGetValue(explodePacket.SourceId, out Actor source))
-                                            projectile.killCredit = source;
-
-                                    projectile.transform.position = explodePacket.Position;
+                                    if (explodePacket.SourceId != -1 && ClientActors.TryGetValue(explodePacket.SourceId, out Actor source))
+                                    {
+                                        projectile.killCredit = source;
+                                        projectile.sourceWeapon = source.activeWeapon;
+                                    }
+                                    if(explodePacket.Position != Vector3.zero)
+                                        projectile.transform.position = explodePacket.Position;
                                     // RemoteDetonatedProjectiles don't explode like normal projectiles.
                                     if (projectile.GetType() == typeof(RemoteDetonatedProjectile))
                                     {
@@ -2231,7 +2309,7 @@ namespace RavenM
                                             var destructible = destructibles[i];
 
                                             if (!destructible.isDead && destructiblePacket.States[i])
-                                                destructible.Shatter();
+                                                typeof(Destructible).GetMethod("Die", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(destructible, new object[] { new DamageInfo() });
                                         }
                                     }
                                 }
@@ -2245,8 +2323,7 @@ namespace RavenM
 
                                     if (destructible == null || destructible.isDead)
                                         break;
-
-                                    destructible.Shatter();
+                                    typeof(Destructible).GetMethod("Die", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(destructible, new object[] {new DamageInfo()});
                                 }
                                 break;
                             case PacketType.ChatCommand:
@@ -2600,6 +2677,7 @@ namespace RavenM
                             SpawnPointOwners = new int[ActorManager.instance.spawnPoints.Length],
                             Scenarios = new List<ScenarioPacket>(specOpsObj.activeScenarios.Count),
                             GameIsRunning = (bool)typeof(SpecOpsMode).GetField("gameIsRunning", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(specOpsObj),
+                            Patrols = new List<SpecOpsPatrolPacket>()
                         };
 
                         for (int i = 0; i < ActorManager.instance.spawnPoints.Length; i++)
@@ -2648,6 +2726,19 @@ namespace RavenM
                             }
 
                             gamePacket.Scenarios.Add(packet);
+                        }
+
+                        foreach (var patrol in specOpsObj.activePatrols)
+                        {
+                            var packet = new SpecOpsPatrolPacket();
+                            packet.members = new List<int>(patrol.squad.members.Count);
+                            foreach (var actor in patrol.squad.members)
+                            {
+                                packet.members.Add(actor.GetComponent<GuidComponent>().guid);
+                            }
+                            packet.isObjective = patrol.objective != null;
+                            packet.type = (int)patrol.type;
+                            gamePacket.Patrols.Add(packet);
                         }
 
                         using MemoryStream memoryStream = new MemoryStream();
@@ -2813,6 +2904,7 @@ namespace RavenM
                     Flags = GenerateFlags(actor),
                     Ammo = !actor.dead && actor.activeWeapon != null ? actor.activeWeapon.ammo : 0,
                     Health = actor.health,
+                    Balance = actor.balance,
                     VehicleId = actor.IsSeated() && actor.seat.vehicle.TryGetComponent(out GuidComponent vguid) ? vguid.guid : 0,
                     Seat = actor.IsSeated() ? actor.seat.vehicle.seats.IndexOf(actor.seat) : -1,
                     MovingPlatformVehicleId = actor.controller is FpsActorController fpsActorController2 && fpsActorController2.movingPlatformVehicle != null

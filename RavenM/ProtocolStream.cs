@@ -383,6 +383,12 @@ namespace RavenM
                 }
             }
             Write(value.GameIsRunning);
+
+            Write(value.Patrols.Count);
+            foreach (var patrol in value.Patrols)
+            {
+                Write(patrol);
+            }
         }
 
         public void Write(ScenarioPacket value)
@@ -416,6 +422,17 @@ namespace RavenM
             Write(value as ScenarioPacket);
             Write(value.Targets.Count);
             foreach (var target in value.Targets)
+            {
+                Write(target);
+            }
+        }
+
+        public void Write(SpecOpsPatrolPacket value)
+        {
+            Write(value.isObjective);
+            Write(value.type);
+            Write(value.members.Count);
+            foreach (var target in value.members)
             {
                 Write(target);
             }
@@ -979,6 +996,15 @@ namespace RavenM
             state.Scenarios = scenarios;
             state.GameIsRunning = ReadBoolean();
 
+            int patrolCount = ReadInt32();
+            var patrols = new List<SpecOpsPatrolPacket>(patrolCount);
+            for (int i = 0; i < patrolCount; i++)
+            {
+                patrols.Add(ReadSpecOpsPatrolPacket());
+            }
+            state.Patrols = patrols;
+
+
             return state;
         }
 
@@ -1047,6 +1073,25 @@ namespace RavenM
                 scenario.Targets.Add(ReadInt32());
             }
             return scenario;
+        }
+        public SpecOpsPatrolPacket ReadSpecOpsPatrolPacket()
+        {
+            bool isObjective = ReadBoolean();
+            int type = ReadInt32();
+            int count = ReadInt32();
+            List<int> members = new List<int>();
+
+            for (int i = 0; i < count; i++)
+            {
+                members.Add(ReadInt32());
+            }
+            return new SpecOpsPatrolPacket
+            {
+                isObjective = isObjective,
+                members = members,
+                type = type
+            
+            };
         }
 
         public FireFlarePacket ReadFireFlarePacket()

@@ -843,7 +843,10 @@ namespace RavenM
                     if (givenEntry == customMapOptionIndex)
                     {
                         string mapName = SteamMatchmaking.GetLobbyData(ActualLobbyID, "customMap");
-
+                        if(InstantActionMaps.instance.mapDropdown == null)
+                        {
+                            return;
+                        }
                         if (InstantActionMaps.instance.mapDropdown.value != customMapOptionIndex || entries[customMapOptionIndex].metaData.displayName != mapName)
                         {
                             foreach (Transform item in InstantActionMaps.instance.customMapsBrowser.contentPanel)

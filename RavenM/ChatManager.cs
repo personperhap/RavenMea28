@@ -592,6 +592,7 @@ namespace RavenM
             {
                 GUI.SetNextControlName("chat");
                 CurrentChatMessage = GUI.TextField(new Rect(xOffset, Screen.height - 160f, (chatWidth - 70f), 25f), CurrentChatMessage);
+                CurrentChatMessage = CurrentChatMessage.Replace('<', ' ').Replace('>', ' ');
                 GUI.FocusControl("chat");
 
                 string color = !ChatMode ? "green" : (GameManager.PlayerTeam() == 0 ? "blue" : "red");

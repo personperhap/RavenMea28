@@ -47,6 +47,8 @@ namespace RavenM
 
         public float Health;
 
+        public float Balance;
+
         public int VehicleId;
 
         public int Seat;

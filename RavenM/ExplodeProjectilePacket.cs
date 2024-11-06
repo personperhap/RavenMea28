@@ -2,6 +2,9 @@
 using HarmonyLib;
 using Steamworks;
 using UnityEngine;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Reflection.Emit;
 
 namespace RavenM
 {
@@ -25,8 +28,8 @@ namespace RavenM
                 return;
 
             int sourceId = -1;
-            if (__instance.killCredit.TryGetComponent(out GuidComponent aguid))
-                sourceId = aguid.guid; 
+            if (__instance.killCredit != null && __instance.killCredit.TryGetComponent(out GuidComponent aguid))
+                sourceId = aguid.guid;
 
 
             using MemoryStream memoryStream = new MemoryStream();
@@ -47,7 +50,52 @@ namespace RavenM
             IngameNetManager.instance.SendPacketToServer(data, PacketType.Explode, Constants.k_nSteamNetworkingSend_Reliable);
         }
     }
-    
+    [HarmonyPatch(typeof(ActorManager), "Explode", new System.Type[] { typeof(ExplosionInfo), typeof(bool) })]
+    public class FixExplosionDesyncPatch
+    {
+        static bool Prefix(ActorManager __instance, ref ExplosionInfo info, ref bool reduceFriendlyDamage, ref bool __result)
+        {
+            reduceFriendlyDamage = false;
+            if (info.configuration.damageRange <= 0.3f && info.configuration.balanceRange <= 0.3f)
+            {
+                __result = false;
+                return false;
+            }
+            return true;
+        }
+    }
+    [HarmonyPatch(typeof(ActorManager), "Explode", new System.Type[] { typeof(ExplosionInfo), typeof(bool) })]
+    public class ExplosionCheckDistancePatch
+    {
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        {
+            bool replacedFirst = false;
+            MethodInfo maxCall = typeof(Mathf).GetMethod(
+                nameof(Mathf.Max), 
+                BindingFlags.Static | BindingFlags.Public, 
+                null, 
+                CallingConventions.Any, 
+                new System.Type[] { typeof(float[]) }, 
+                null);
+            foreach (var instruction in instructions)
+            {
+                if (instruction.opcode == OpCodes.Call && (MethodInfo)instruction.operand == maxCall && !replacedFirst)
+                {
+                    replacedFirst = true;
+                    yield return new CodeInstruction(OpCodes.Call, typeof(ExplosionCheckDistancePatch).GetMethod(nameof(MaxPatch), BindingFlags.Static | BindingFlags.NonPublic));
+                }
+                else
+                {
+                    yield return instruction;
+                }
+            }
+        }
+
+        static float MaxPatch(float[] val)
+        {
+            return Mathf.Max(val[0], val[1]);
+        }
+    }
 
     public class ExplodeProjectilePacket
     {

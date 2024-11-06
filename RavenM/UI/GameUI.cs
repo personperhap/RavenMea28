@@ -137,6 +137,7 @@ namespace RavenM.UI
                 nameTagObjects[nameTag].resizeTextMaxSize = nameTagfontSize;
                 nameTagObjects[nameTag].resizeTextMinSize = nameTagfontSize - 10;
             }
+            onlyForTeam = LobbySystem.instance.nameTagsForTeamOnly;
             Plugin.logger.LogInfo("Toggled nametags");
         }
         public void AddToNameTagQueue(Actor actor)
@@ -174,7 +175,14 @@ namespace RavenM.UI
             };
             nameTagObjects.Add(nameTagData, nameTagText);
             nameTagObjects[nameTagData].text = actor.name;
-            nameTagObjects[nameTagData].color = nameTagData.teamColor;
+            if (GameModeBase.activeGameMode is SpecOpsMode)
+            {
+                nameTagObjects[nameTagData].color = IngameNetManager.StringToColor(actor.name);
+            }
+            else
+            {
+                nameTagObjects[nameTagData].color = nameTagData.teamColor;
+            }
             if (onlyForTeam)
                 if (actor.team != playerTeamID)
                     nameTagData.canvasGroup.alpha = 0f;
@@ -271,7 +279,7 @@ namespace RavenM.UI
                         continue;
                 var camera = FpsActorController.instance.inPhotoMode ? SpectatorCamera.instance.camera : FpsActorController.instance.GetActiveCamera();
                 Vector3 currentPos = actor.CenterPosition() + new Vector3(0, 1f, 0);
-                if (actor.IsSeated())
+                if (actor.IsSeated() && actor.IsDriver())
                 {
                     if (!actor.dead && actor.seat.vehicle.rigidbody != null)
                     {
@@ -329,7 +337,14 @@ namespace RavenM.UI
                 if (shouldDraw)
                 {
                     tag.enabled = true;
-                    kv.canvasGroup.alpha = 1f;
+                    if (actor.dead)
+                    {
+                        kv.canvasGroup.alpha = 0.5f;
+                    }
+                    else
+                    {
+                        kv.canvasGroup.alpha = 1f;
+                    }
                 }
                 else
                 {

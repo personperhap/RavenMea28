@@ -224,6 +224,12 @@ namespace RavenM
                 actor.SwitchWeapon(Targets.ActiveWeaponHash);
             }
 
+            if (WantsToFire() && actor.activeWeapon != null)
+            {
+                if (actor.activeWeapon is ThrowableWeapon)
+                    actor.EmoteThrow();
+            }
+
             if (!actor.dead && actor.IsSeated() && actor.seat.HasActiveWeapon() && actor.seat.activeWeapon.GetType() == typeof(Mortar))
             {
                 typeof(Mortar).GetField("range", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(actor.seat.activeWeapon, Targets.RangeInput);

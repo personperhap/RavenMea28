@@ -61,7 +61,7 @@ namespace RavenM
             {
                 if (!changeGUID)
                 {
-                    return $"INDEV-0-7-{Assembly.GetExecutingAssembly().ManifestModule.ModuleVersionId.ToString().Split('-').Last()}";
+                    return $"INDEV-PERS-0-8-{Assembly.GetExecutingAssembly().ManifestModule.ModuleVersionId.ToString().Split('-').Last()}";
                 }
                 else
                 {
@@ -70,7 +70,7 @@ namespace RavenM
             }
         }
 
-        public static readonly int EXPECTED_BUILD_NUMBER = 29;
+        public static readonly int EXPECTED_BUILD_NUMBER = 30;
 
         private ConfigEntry<bool> configRavenMDevMod;
         private ConfigEntry<bool> configRavenMAddToBuiltInMutators;
