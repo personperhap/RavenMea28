@@ -111,7 +111,7 @@ namespace RavenM
                     if (actorKillCredit != -1)
                         info.sourceActor = IngameNetManager.instance.ClientActors[actorKillCredit];
 
-                    actor.Kill(info);
+                    actor.Kill(info); //more attempts to give proper kill credit
                     actorKillCredit = -1;
                 }
 
@@ -258,9 +258,8 @@ namespace RavenM
 
         public override bool CanBeRammedBy(Vehicle vehicle)
         {
-            if (Targets.MovingPlatformVehicleId != 0/* && IngameNetManager.instance.ClientVehicles.TryGetValue(Targets.MovingPlatformVehicleId, out Vehicle platform) && platform == vehicle*/) 
-            {
-                return IngameNetManager.instance.TargetVehicleStates[Targets.MovingPlatformVehicleId].RamActive;
+            if (Targets.MovingPlatformVehicleId != 0 && IngameNetManager.instance.ClientVehicles.TryGetValue(Targets.MovingPlatformVehicleId, out Vehicle platform) && platform == vehicle) {
+                return vehicle.Velocity().sqrMagnitude > 400f;
             }
             return true;
         }
@@ -331,6 +330,7 @@ namespace RavenM
         public override void Die(Actor killer)
         {
             RespawnCooldown.Start();
+            actorKillCredit = -1;
             
             // Reset the animator Controller in case the PerformKick Coroutine is Interrupted
             if (KickAnimation.OldKickController == null)

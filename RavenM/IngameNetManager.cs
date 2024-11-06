@@ -2807,7 +2807,7 @@ namespace RavenM
             if (actor.dead) flags |= (int)ActorStateFlags.Dead;
             if (actor.aiControlled) flags |= (int)ActorStateFlags.AiControlled;
             if (!actor.dead && actor.controller.DeployParachute()) flags |= (int)ActorStateFlags.DeployParachute;
-            if (!actor.dead && actor.fallenOver) flags |= (int)ActorStateFlags.Knockdown;
+            if (!actor.dead && actor.fallenOver) flags |= (int)ActorStateFlags.Knockdown; //sync knockdown state
             return flags;
         }
 
@@ -2904,7 +2904,7 @@ namespace RavenM
                     Flags = GenerateFlags(actor),
                     Ammo = !actor.dead && actor.activeWeapon != null ? actor.activeWeapon.ammo : 0,
                     Health = actor.health,
-                    Balance = actor.balance,
+                    Balance = actor.balance, //more balance syncing. do we need this?
                     VehicleId = actor.IsSeated() && actor.seat.vehicle.TryGetComponent(out GuidComponent vguid) ? vguid.guid : 0,
                     Seat = actor.IsSeated() ? actor.seat.vehicle.seats.IndexOf(actor.seat) : -1,
                     MovingPlatformVehicleId = actor.controller is FpsActorController fpsActorController2 && fpsActorController2.movingPlatformVehicle != null
@@ -2961,7 +2961,6 @@ namespace RavenM
                     Dead = vehicle.dead,
                     IsTurret = vehicle.isTurret,
                     Active = vehicle.gameObject.activeSelf,
-                    RamActive = vehicle.Velocity().sqrMagnitude > 400f, //what if we check according to the server?
                     Invulnerable = vehicle.isInvulnerable //massive problems with anything invulnerable is made. 
 
                 };

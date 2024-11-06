@@ -50,6 +50,8 @@ namespace RavenM
             IngameNetManager.instance.SendPacketToServer(data, PacketType.Explode, Constants.k_nSteamNetworkingSend_Reliable);
         }
     }
+
+    //we shouldn't need to do an explosion if the damage range is that small. this mostly applies to modded, but it can add up in ravenm lobbies
     [HarmonyPatch(typeof(ActorManager), "Explode", new System.Type[] { typeof(ExplosionInfo), typeof(bool) })]
     public class FixExplosionDesyncPatch
     {
@@ -64,6 +66,8 @@ namespace RavenM
             return true;
         }
     }
+
+    //some qol for spec ops
     [HarmonyPatch(typeof(ActorManager), "Explode", new System.Type[] { typeof(ExplosionInfo), typeof(bool) })]
     public class ExplosionCheckDistancePatch
     {

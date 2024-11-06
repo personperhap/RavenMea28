@@ -6,7 +6,6 @@ using System.Reflection.Emit;
 
 namespace RavenM
 {
-
     [HarmonyPatch(typeof(SkirmishMode), "SpawnReinforcementWave")]
     public class SkirmishWavePatch
     {
